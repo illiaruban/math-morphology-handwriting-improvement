@@ -1,4 +1,4 @@
-#in this file the most basic operations of mathematical morphology are applied to image
+#in this file the most basic operations of mathematical morphology are applied to an image
 
 import cv2
 import matplotlib.pyplot as plt

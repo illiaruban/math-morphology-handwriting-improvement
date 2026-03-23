@@ -1,4 +1,4 @@
-#in this file white and black top-hat operations are applied to image
+#in this file white and black top-hat operations are applied to an image
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
