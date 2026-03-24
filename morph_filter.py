@@ -1,10 +1,10 @@
-#in this file one of many morphological filters is applied to an image
+#in this file three morphological filters are applied to images
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-#download image
+#parallel morphological filter
 img = cv2.imread('./dataset/4.bmp', 0)
 img = cv2.bitwise_not(img)
 kernel1 = np.ones((5, 5), np.uint8)
@@ -56,6 +56,105 @@ plt.axis('off')
 plt.subplot(3, 2, 6)
 plt.imshow(filtered_img, cmap='gray')
 plt.title("Фільтр (об'єднання двох результатів)")
+plt.axis('off')
+
+plt.tight_layout()
+plt.show()
+
+
+#sequential morphological filter
+img = cv2.imread("./dataset/5.bmp", 0)
+
+kernel = np.ones((4,4), np.uint8)
+
+#opening
+img_erosion = cv2.erode(img, kernel, iterations=1)
+img_opening = cv2.dilate(img_erosion, kernel, iterations=1)
+
+#dual closing
+inv_img = cv2.bitwise_not(img_opening)
+img_erosion_inv = cv2.erode(inv_img, kernel, iterations=1)
+img_closing_inv = cv2.dilate(img_erosion_inv, kernel, iterations=1)
+
+result = cv2.bitwise_not(img_closing_inv)
+
+#plotting
+plt.figure(figsize=(8, 8))
+
+plt.subplot(2, 2, 1)
+plt.imshow(img, cmap='gray')
+plt.title("Оригінальне зображення")
+plt.axis('off')
+
+plt.subplot(2, 2, 2)
+plt.imshow(img_opening, cmap='gray')
+plt.title("Після розкриття")
+plt.axis('off')
+
+plt.subplot(2, 2, 3)
+plt.imshow(inv_img, cmap='gray')
+plt.title("Комплімент результату розкриття")
+plt.axis('off')
+
+plt.subplot(2, 2, 4)
+plt.imshow(result, cmap='gray')
+plt.title("Дуальне закриття")
+plt.axis('off')
+
+plt.tight_layout()
+plt.show()
+
+
+#iterative morphological filter
+img = cv2.imread("./dataset/6.bmp", 0)
+current = img.copy()
+first_iter = None
+
+for i in range(10):
+    k = 1 + 4*i  
+    kernel = np.ones((k, k), np.uint8)
+
+    # opening
+    img_erosion = cv2.erode(current, kernel, iterations=1)
+    img_opening = cv2.dilate(img_erosion, kernel, iterations=1)
+
+    # dual closing
+    inv_img = cv2.bitwise_not(img_opening)
+    img_erosion_inv = cv2.erode(inv_img, kernel, iterations=1)
+    img_closing_inv = cv2.dilate(img_erosion_inv, kernel, iterations=1)
+    result = cv2.bitwise_not(img_closing_inv)
+
+    if i == 0:
+        first_iter = result.copy()
+
+    if np.array_equal(current, result):
+        break
+
+    current = result.copy()
+
+last_iter = current
+
+#plotting
+plt.figure(figsize=(8, 8))
+
+plt.subplot(2, 2, 1)
+plt.imshow(img, cmap='gray')
+plt.title("Оригінальне зображення")
+plt.axis('off')
+
+plt.subplot(2, 2, 2)
+plt.imshow(first_iter, cmap='gray')
+plt.title("Перша ітерація")
+plt.axis('off')
+
+plt.subplot(2, 2, 3)
+plt.imshow(img, cmap='gray')
+plt.title("Оригінальне зображення")
+plt.axis('off')
+
+plt.subplot(2, 2, 4)
+plt.imshow(last_iter, cmap='gray')
+plt.title("Остання ітерація")
 plt.axis('off')
 
 plt.tight_layout()
