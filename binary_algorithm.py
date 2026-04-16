@@ -3,95 +3,96 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def binary_algorithm(binary_img, L):
-
-    result = np.full(binary_img.shape, 255, dtype=np.uint8)
-    
-    #calculate the max length of path which ends in elements of the image - represented as image
+    # compute path lengths
     lambda_plus = compute_lambda_plus(binary_img)
-    #calculate the max length of path which starts in elements of the image
     lambda_minus = compute_lambda_minus(binary_img)
-    #calculate the max path that includes elements of the image
+
+    # total path length through each pixel
     lambda_total = lambda_plus + lambda_minus - 1
-    #filter the elements of the image that satisfy the condition
+
+    # keep only pixels that belong to paths of length >= L
+    result = np.full(binary_img.shape, 255, dtype=np.uint8)
     result[(binary_img == 1) & (lambda_total >= L)] = 0
 
     return result
 
-def get_predecessors(i, j, h, w):
-    preds = []
-
-    possible = [
-        (i + 1, j - 1),  # bottom-left
-        (i + 1, j),      # bottom
-        (i + 1, j + 1)   # bottom-right
-    ]
-
-    for ni, nj in possible:
-        if 0 <= ni < h and 0 <= nj < w:
-            preds.append((ni, nj))
-
-    return preds
 
 def compute_lambda_plus(img):
     h, w = img.shape
     lambda_plus = np.zeros((h, w), dtype=np.int32)
 
-    for i in range(h - 1, -1, -1):  # from bottom to top
+    # from bottom to top
+    for i in range(h - 1, -1, -1):
         for j in range(w):
             if img[i, j] == 0:
-                lambda_plus[i, j] = 0
                 continue
 
-            preds = get_predecessors(i, j, h, w)
+            max_val = 0
 
-            values = []
-            for pi, pj in preds:
-                if img[pi, pj] == 1:
-                    values.append(lambda_plus[pi, pj])
+            ni = i + 1
+            if ni < h:
+                # bottom-left
+                nj = j - 1
+                if nj >= 0 and img[ni, nj] == 1:
+                    val = lambda_plus[ni, nj]
+                    if val > max_val:
+                        max_val = val
 
-            if values:
-                lambda_plus[i, j] = max(values) + 1
-            else:
-                lambda_plus[i, j] = 1
+                # bottom
+                nj = j
+                if img[ni, nj] == 1:
+                    val = lambda_plus[ni, nj]
+                    if val > max_val:
+                        max_val = val
+
+                # bottom-right
+                nj = j + 1
+                if nj < w and img[ni, nj] == 1:
+                    val = lambda_plus[ni, nj]
+                    if val > max_val:
+                        max_val = val
+
+            lambda_plus[i, j] = max_val + 1
 
     return lambda_plus
 
-def get_successors(i, j, h, w):
-    succs = []
-
-    possible = [
-        (i - 1, j - 1),  # top-left
-        (i - 1, j),      # top
-        (i - 1, j + 1)   # top-right
-    ]
-
-    for ni, nj in possible:
-        if 0 <= ni < h and 0 <= nj < w:
-            succs.append((ni, nj))
-
-    return succs
 
 def compute_lambda_minus(img):
     h, w = img.shape
     lambda_minus = np.zeros((h, w), dtype=np.int32)
 
-    for i in range(h): # from top to bottom
+    # from top to bottom
+    for i in range(h):
         for j in range(w):
-
             if img[i, j] == 0:
-                lambda_minus[i, j] = 0
                 continue
 
-            succs = get_successors(i, j, h, w)
-            values = []
-            for si, sj in succs:
-                if img[si, sj] == 1:
-                    values.append(lambda_minus[si, sj])
+            max_val = 0
 
-            if values:
-                lambda_minus[i, j] = max(values) + 1
-            else:
-                lambda_minus[i, j] = 1
+            ni = i - 1
+            if ni >= 0:
+                # top-left
+                nj = j - 1
+                if nj >= 0 and img[ni, nj] == 1:
+                    val = lambda_minus[ni, nj]
+                    if val > max_val:
+                        max_val = val
+
+                # top
+                nj = j
+                if img[ni, nj] == 1:
+                    val = lambda_minus[ni, nj]
+                    if val > max_val:
+                        max_val = val
+
+                # top-right
+                nj = j + 1
+                if nj < w and img[ni, nj] == 1:
+                    val = lambda_minus[ni, nj]
+                    if val > max_val:
+                        max_val = val
+
+            lambda_minus[i, j] = max_val + 1
 
     return lambda_minus
 
@@ -113,17 +114,25 @@ if __name__ == "__main__":
     #plotting
     fig, axes = plt.subplots(2, 2, figsize=(10, 8))
 
-    axes[0, 0].imshow(img, cmap='gray')
-    axes[0, 0].set_title("Оригінальне зображення")
+    plt.subplot(2, 2, 1)
+    plt.imshow(img, cmap="gray")
+    plt.title("Зображення з рівнями сірого")
+    plt.axis("off")
 
-    axes[0, 1].imshow(result1, cmap='gray')
-    axes[0, 1].set_title("Результат(L = 10)")
+    plt.subplot(2, 2, 2)
+    plt.imshow(result1, cmap="gray")
+    plt.title("Результат(L = 10)")
+    plt.axis("off")
 
-    axes[1, 0].imshow(binary, cmap='gray')
-    axes[1, 0].set_title("Бінарне зображення")
+    plt.subplot(2, 2, 3)
+    plt.imshow(binary, cmap="gray")
+    plt.title("Бінарне зображення")
+    plt.axis("off")
 
-    axes[1, 1].imshow(result2, cmap='gray')
-    axes[1, 1].set_title("Результат(L = 20)")
+    plt.subplot(2, 2, 4)
+    plt.imshow(result2, cmap="gray")
+    plt.title("Результат(L = 20)")
+    plt.axis("off")
 
     for ax in axes.ravel():
         ax.axis('off')
