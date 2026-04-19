@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import heapq
+from binary_algorithm import get_predecessors, get_successors
 
 def talbot_algorithm(img, L, reduce_gray_step=2, dark_text=True):
 
@@ -55,10 +56,10 @@ def talbot_algorithm(img, L, reduce_gray_step=2, dark_text=True):
     return result
 
 def update_lambda_plus(img, level, lambda_plus):
-    height, width = img.shape
 
     # pixels that stay in the next upper level set
     alive_next = img > level
+    alive_next_uint8 = alive_next.astype(np.uint8)
 
     # priority queue with all pixels at the current gray level
     Q = []
@@ -71,66 +72,32 @@ def update_lambda_plus(img, level, lambda_plus):
     while Q:
         _, x, y = heapq.heappop(Q)
 
-        # lambda = 0
-        lambda_val = 0
+        max_pred = 0
+        predecessors = get_predecessors(alive_next_uint8, x, y)
 
-        # if f(x) is above current grey level
-        if img[x, y] > level:
-            max_pred = 0
+        for px, py in predecessors:
+            val = lambda_plus[px, py]
+            if val > max_pred:
+                max_pred = val
 
-            nx = x + 1
-            if nx < height:
-                # bottom-left
-                ny = y - 1
-                if ny >= 0 and alive_next[nx, ny]:
-                    val = lambda_plus[nx, ny]
-                    if val > max_pred:
-                        max_pred = val
-
-                # bottom
-                ny = y
-                if alive_next[nx, ny]:
-                    val = lambda_plus[nx, ny]
-                    if val > max_pred:
-                        max_pred = val
-
-                # bottom-right
-                ny = y + 1
-                if ny < width and alive_next[nx, ny]:
-                    val = lambda_plus[nx, ny]
-                    if val > max_pred:
-                        max_pred = val
-
-            lambda_val = max_pred + 1
+        lambda_val = max_pred + 1
 
         # if lambda < lambda_plus(x)
         if lambda_val < lambda_plus[x, y]:
-            # step 8
             lambda_plus[x, y] = lambda_val
 
-            # push successors (top-left, top, top-right)
-            nx = x - 1
-            if nx >= 0:
-                ny = y - 1
-                if ny >= 0 and alive_next[nx, ny]:
-                    heapq.heappush(Q, ((-nx, ny), nx, ny))
-
-                ny = y
-                if alive_next[nx, ny]:
-                    heapq.heappush(Q, ((-nx, ny), nx, ny))
-
-                ny = y + 1
-                if ny < width and alive_next[nx, ny]:
-                    heapq.heappush(Q, ((-nx, ny), nx, ny))
+            successors = get_successors(alive_next_uint8, x, y)
+            for sx, sy in successors:
+                heapq.heappush(Q, ((-sx, sy), sx, sy))
 
     return lambda_plus
 
 
 def update_lambda_minus(img, level, lambda_minus):
-    height, width = img.shape
-
+    
     # pixels that stay in the next upper level set
     alive_next = img > level
+    alive_next_uint8 = alive_next.astype(np.uint8)
 
     # priority queue with all pixels at the current gray level
     Q = []
@@ -143,56 +110,23 @@ def update_lambda_minus(img, level, lambda_minus):
     while Q:
         _, x, y = heapq.heappop(Q)
 
-        # lambda = 0
-        lambda_val = 0
+        max_pred = 0
+        successors = get_successors(alive_next_uint8, x, y)
 
-        # if f(x) is above current grey level
-        if img[x, y] > level:
-            max_pred = 0
+        for px, py in successors:
+            val = lambda_minus[px, py]
+            if val > max_pred:
+                max_pred = val
 
-            nx = x - 1
-            if nx >= 0:
-                # top-left
-                ny = y - 1
-                if ny >= 0 and alive_next[nx, ny]:
-                    val = lambda_minus[nx, ny]
-                    if val > max_pred:
-                        max_pred = val
-
-                # top
-                ny = y
-                if alive_next[nx, ny]:
-                    val = lambda_minus[nx, ny]
-                    if val > max_pred:
-                        max_pred = val
-
-                # top-right
-                ny = y + 1
-                if ny < width and alive_next[nx, ny]:
-                    val = lambda_minus[nx, ny]
-                    if val > max_pred:
-                        max_pred = val
-
-            lambda_val = max_pred + 1
+        lambda_val = max_pred + 1
 
         # if lambda < lambda_minus(x)
         if lambda_val < lambda_minus[x, y]:
             lambda_minus[x, y] = lambda_val
 
-            # push successors (bottom-left, bottom, bottom-right)
-            nx = x + 1
-            if nx < height:
-                ny = y - 1
-                if ny >= 0 and alive_next[nx, ny]:
-                    heapq.heappush(Q, ((nx, ny), nx, ny))
-
-                ny = y
-                if alive_next[nx, ny]:
-                    heapq.heappush(Q, ((nx, ny), nx, ny))
-
-                ny = y + 1
-                if ny < width and alive_next[nx, ny]:
-                    heapq.heappush(Q, ((nx, ny), nx, ny))
+            predecessors = get_predecessors(alive_next_uint8, x, y)
+            for sx, sy in predecessors:
+                heapq.heappush(Q, ((sx, sy), sx, sy))
 
     return lambda_minus
 
