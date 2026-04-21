@@ -2,29 +2,8 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from numba import njit
-from binary_algorithm import get_predecessors, get_successors
 
 MAX_STACK_SIZE = 256
-
-def stack_path_opening(img, L):
-    if img.dtype != np.uint8:
-        raise ValueError("img must be a uint8 grayscale image")
-
-    work = 255 - img
-    mask = (work > 0).astype(np.uint8)
-
-    #update lambda plus and lambda minus sets
-    lambda_plus_set = update_lambda_plus_set(work, mask)
-    lambda_minus_set = update_lambda_minus_set(work, mask)
-
-    result = build_result(
-        lambda_plus_set[0], lambda_plus_set[1], lambda_plus_set[2],
-        lambda_minus_set[0], lambda_minus_set[1], lambda_minus_set[2],
-        mask, L
-    )
-
-    return 255 - result
-
 
 def precompute_stack_path_opening(img):
     if img.dtype != np.uint8:
@@ -33,7 +12,6 @@ def precompute_stack_path_opening(img):
     work = 255 - img
     mask = (work > 0).astype(np.uint8)
 
-    #update lambda plus and lambda minus sets
     lambda_plus_set = update_lambda_plus_set(work, mask)
     lambda_minus_set = update_lambda_minus_set(work, mask)
 
@@ -47,6 +25,7 @@ def stack_path_opening_from_precomputed(work, mask, lambda_plus_set, lambda_minu
         mask, L
     )
     return 255 - result
+
 
 @njit
 def merge(pred_levels, pred_lambdas, pred_sizes, pred_count):
@@ -132,12 +111,10 @@ def _update_lambda_plus_set(img, mask):
 
                         pred_count += 1
 
-            #merge all lambda plus sets for predecessors
             merged_levels, merged_lambdas, merged_size = merge(
                 pred_levels, pred_lambdas, pred_sizes, pred_count
             )
 
-            #find maximum predecessor path length
             max_len = 0
             for k in range(merged_size):
                 l = merged_levels[k]
@@ -145,10 +122,8 @@ def _update_lambda_plus_set(img, mask):
 
                 if l >= value and lmbda > max_len:
                     max_len = lmbda
-            
+
             lambda_plus_temp = max_len + 1
-            
-            #update lambda plus set
             current_size = 0
 
             for k in range(merged_size):
@@ -165,7 +140,7 @@ def _update_lambda_plus_set(img, mask):
             current_size += 1
 
             sizes[x, y] = current_size
-        
+
     return levels, lambdas, sizes
 
 
@@ -202,12 +177,10 @@ def _update_lambda_minus_set(img, mask):
 
                         pred_count += 1
 
-            # merge all lambda minus sets for predecessors
             merged_levels, merged_lambdas, merged_size = merge(
                 pred_levels, pred_lambdas, pred_sizes, pred_count
             )
 
-            # find maximum predecessor path length
             max_len = 0
             for k in range(merged_size):
                 l = merged_levels[k]
@@ -217,8 +190,6 @@ def _update_lambda_minus_set(img, mask):
                     max_len = lmbda
 
             lambda_minus_temp = max_len + 1
-
-            # update lambda minus set
             current_size = 0
 
             for k in range(merged_size):
@@ -239,31 +210,6 @@ def _update_lambda_minus_set(img, mask):
     return levels, lambdas, sizes
 
 
-def merge_lambdas(lambda_plus_set, lambda_minus_set):
-    plus_levels, plus_lambdas, plus_size = lambda_plus_set
-    minus_levels, minus_lambdas, minus_size = lambda_minus_set
-
-    combined = []
-    i = 0
-    j = 0
-
-    while i < plus_size and j < minus_size:
-        level_plus = plus_levels[i]
-        level_minus = minus_levels[j]
-
-        if level_plus == level_minus:
-            total = plus_lambdas[i] + minus_lambdas[j] - 1
-            combined.append((int(level_plus), int(total)))
-            i += 1
-            j += 1
-        elif level_plus < level_minus:
-            i += 1
-        else:
-            j += 1
-
-    return combined
-
-
 @njit
 def build_result(
     plus_levels, plus_lambdas, plus_sizes,
@@ -278,7 +224,6 @@ def build_result(
             if mask[x, y] == 0:
                 continue
 
-            # keep the maximum gray level whose total path length is >= L
             max_valid_level = 0
 
             i = 0
@@ -313,7 +258,7 @@ if __name__ == "__main__":
 
     if img is None:
         raise FileNotFoundError("Не вдалося завантажити зображення")
-    
+
     work, mask, lambda_plus_set, lambda_minus_set = precompute_stack_path_opening(img)
 
     result1 = stack_path_opening_from_precomputed(work, mask, lambda_plus_set, lambda_minus_set, L=10)
