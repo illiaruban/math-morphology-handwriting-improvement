@@ -3,40 +3,89 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numba import njit
 
-"""
-The algorithm presented in this file is based on stack-based path opening with some modifications to
-perform better on handwriting images specifically.
-
-"""
-
 MAX_STACK_SIZE = 256
 
-def precompute_stack_path_opening(img):
 
+def handwriting_enhancement_algorithm(img, L, levels_per_mask=40):
     if img.dtype != np.uint8:
         raise ValueError("img must be a uint8 grayscale image")
 
     work = 255 - img
-    mask = (work > 0).astype(np.uint8)
-    _, binary = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+    path_mask = (work > 0).astype(np.uint8)
 
-    lambda_plus_set = update_lambda_plus_set(work, mask)
-    lambda_minus_set = update_lambda_minus_set(work, mask)
+    lambda_plus_set = update_lambda_plus_set(work, path_mask)
+    lambda_minus_set = update_lambda_minus_set(work, path_mask)
 
-    return mask, lambda_plus_set, lambda_minus_set
-
-
-def stack_path_opening(img, L):
-
-    mask, lambda_plus_set, lambda_minus_set = precompute_stack_path_opening(img)
-
-    result = build_result(
+    raw_result = build_result(
         lambda_plus_set[0], lambda_plus_set[1], lambda_plus_set[2],
         lambda_minus_set[0], lambda_minus_set[1], lambda_minus_set[2],
-        mask, L
+        path_mask, L
     )
-    return 255 - result
 
+    level_masks = compute_level_masks(
+        raw_result,
+        levels_per_mask=levels_per_mask
+    )
+
+    result = enhance_with_level_masks(
+    original_img=img,
+    level_masks=level_masks,
+    base_darken_value=5,
+    max_darken_value=25
+    )
+
+    return result
+
+
+def compute_level_masks(raw_result, levels_per_mask=40):
+    masks = []
+
+    max_level = int(np.max(raw_result))
+
+    for start in range(1, max_level + 1, levels_per_mask):
+        end = start + levels_per_mask
+
+        mask = (
+            (raw_result >= start) &
+            (raw_result < end)
+        ).astype(np.uint8)
+
+        if np.any(mask):
+            masks.append({
+                "range": (start, end),
+                "mask": mask
+            })
+
+    return sorted(masks, key=lambda x: x["range"][0], reverse=True)
+
+
+def enhance_with_level_masks(
+    original_img,
+    level_masks,
+    base_darken_value=5,
+    max_darken_value=25
+):
+    enhanced = original_img.astype(np.float32).copy()
+
+    for level_data in level_masks:
+        start, end = level_data["range"]
+        mask = level_data["mask"].astype(np.uint8)
+
+        strength = end / 255.0
+
+        darken_value = (
+            base_darken_value
+            + strength * (max_darken_value - base_darken_value)
+        )
+
+        mask_pixels = mask == 1
+
+        enhanced[mask_pixels] = np.maximum(
+            0,
+            enhanced[mask_pixels] - darken_value
+        )
+
+    return np.clip(enhanced, 0, 255).astype(np.uint8)
 
 @njit
 def merge(pred_levels, pred_lambdas, pred_sizes, pred_count):
@@ -79,6 +128,7 @@ def merge(pred_levels, pred_lambdas, pred_sizes, pred_count):
         merged_lambdas[j + 1] = key_lambda
 
     return merged_levels, merged_lambdas, merged_size
+
 
 @njit
 def update_lambda_plus_set(img, mask):
@@ -256,23 +306,27 @@ def build_result(
 
 
 if __name__ == "__main__":
-    img = cv2.imread("./dataset/2.bmp", cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread("./dataset/4.bmp", cv2.IMREAD_GRAYSCALE)
 
     if img is None:
         raise FileNotFoundError("Не вдалося завантажити зображення")
 
-    result1 = stack_path_opening(img, L=10)
+    result = handwriting_enhancement_algorithm(
+    img,
+    L=10,
+    levels_per_mask=40
+    )
 
-    plt.figure(figsize=(12, 10))
+    plt.figure(figsize=(16, 8))
 
     plt.subplot(1, 2, 1)
     plt.imshow(img, cmap="gray")
-    plt.title("Зображення з рівнями сірого")
+    plt.title("Оригінальне зображення")
     plt.axis("off")
 
     plt.subplot(1, 2, 2)
-    plt.imshow(result1, cmap="gray")
-    plt.title("Шляхове розкриття на основі стеку (L = 10)")
+    plt.imshow(result, cmap="gray")
+    plt.title("Результат")
     plt.axis("off")
 
     plt.tight_layout()
