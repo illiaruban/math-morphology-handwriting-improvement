@@ -7,9 +7,9 @@ kernel = np.ones((5, 5), np.uint8)
 
 #white top-hat
 img1 = cv2.imread('./dataset/2.bmp', 0)
-img1 = cv2.bitwise_not(img1)
+img1_inv = cv2.bitwise_not(img1)
 
-tophat_img = cv2.morphologyEx(img1, cv2.MORPH_TOPHAT, kernel)
+tophat_img = cv2.morphologyEx(img1_inv, cv2.MORPH_TOPHAT, kernel)
 
 #black top-hat
 img2 = cv2.imread('./dataset/3.bmp', 0)
@@ -21,7 +21,7 @@ plt.figure(figsize=(10, 8))
 
 plt.subplot(2, 2, 1)
 plt.imshow(img1, cmap='gray')
-plt.title("Оригінальне зображення 1")
+plt.title("Зображення з рівнями сірого")
 plt.axis('off')
 
 plt.subplot(2, 2, 2)
@@ -31,7 +31,7 @@ plt.axis('off')
 
 plt.subplot(2, 2, 3)
 plt.imshow(img2, cmap='gray')
-plt.title("Оригінальне зображення 2")
+plt.title("Зображення з рівнями сірого")
 plt.axis('off')
 
 plt.subplot(2, 2, 4)

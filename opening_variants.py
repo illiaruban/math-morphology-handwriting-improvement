@@ -6,7 +6,7 @@ from itertools import combinations
 
 #opening by reconstruction
 img = cv2.imread("./dataset/8.bmp", 0)
-kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4))
+kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (5, 5))
 
 img_erosion = cv2.erode(img, kernel, iterations=1)
 opening_r = reconstruction(img_erosion, img)
@@ -44,14 +44,11 @@ for i in range(1, num_labels):
 #area opening
 opening_area = area_opening(img, area_threshold=100)
 
-
-#plotting - figure 1
-
 plt.figure(figsize=(10, 8))
 
 plt.subplot(2, 2, 1)
 plt.imshow(img, cmap="gray")
-plt.title("Оригінальне зображення")
+plt.title("Зображення з рівнями сірого")
 plt.axis("off")
 
 plt.subplot(2, 2, 2)
@@ -61,7 +58,7 @@ plt.axis("off")
 
 plt.subplot(2, 2, 3)
 plt.imshow(img, cmap="gray")
-plt.title("Оригінальне зображення")
+plt.title("Зображення з рівнями сірого")
 plt.axis("off")
 
 plt.subplot(2, 2, 4)
@@ -78,7 +75,7 @@ plt.figure(figsize=(10, 8))
 
 plt.subplot(2, 2, 1)
 plt.imshow(img, cmap="gray")
-plt.title("Оригінальне зображення")
+plt.title("Зображення з рівнями сірого")
 plt.axis("off")
 
 plt.subplot(2, 2, 2)
@@ -88,7 +85,7 @@ plt.axis("off")
 
 plt.subplot(2, 2, 3)
 plt.imshow(img, cmap="gray")
-plt.title("Оригінальне зображення")
+plt.title("Зображення з рівнями сірого")
 plt.axis("off")
 
 plt.subplot(2, 2, 4)

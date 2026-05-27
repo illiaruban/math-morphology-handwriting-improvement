@@ -155,7 +155,7 @@ if __name__ == "__main__":
     plt.figure(figsize=(12,4))
 
     plt.subplot(2,2,1)
-    plt.title("Оригінальне зображення")
+    plt.title("Зображення з рівнями сірого")
     plt.imshow(img, cmap='gray')
     plt.axis('off')
 
