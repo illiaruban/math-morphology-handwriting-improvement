@@ -4,15 +4,17 @@ import matplotlib.pyplot as plt
 from numba import njit
 
 MAX_STACK_SIZE = 256
+MAX_NEIGHBORS = 4
 
 
-def handwriting_enhancement_algorithm(img, L, levels_per_mask=30):
+def handwriting_enhancement_algorithm(img, L, darken_value=60, blur=True):
     if img.dtype != np.uint8:
         raise ValueError("img must be a uint8 grayscale image")
 
-    processed_img = cv2.medianBlur(img, 3)
+    if blur:
+        img = cv2.medianBlur(img, 3)
 
-    work = 255 - processed_img
+    work = 255 - img
     path_mask = (work > 0).astype(np.uint8)
 
     lambda_plus_set = update_lambda_plus_set(work, path_mask)
@@ -21,34 +23,24 @@ def handwriting_enhancement_algorithm(img, L, levels_per_mask=30):
     raw_result = build_result(
         lambda_plus_set[0], lambda_plus_set[1], lambda_plus_set[2],
         lambda_minus_set[0], lambda_minus_set[1], lambda_minus_set[2],
-        path_mask, L
+        path_mask,
+        L
     )
 
     stack_path_result = 255 - raw_result
 
-    confirmed_mask = compute_confirmed_mask(stack_path_result)
+    confirmed_mask = compute_mask(stack_path_result)
 
-    refined_mask = refine_mask(
-        confirmed_mask,
-        closing_kernel_size=3
-    )
-
-    soft_mask = build_soft_mask_from_levels(
-        raw_result=raw_result,
-        allowed_mask=refined_mask,
-        levels_per_mask=levels_per_mask
-    )
-
-    result = enhance_with_soft_mask(
+    result = enhance_with_mask(
         original_img=img,
-        soft_mask=soft_mask,
-        darken_value=40
+        mask=confirmed_mask,
+        darken_value=darken_value
     )
 
-    return result, processed_img, stack_path_result, confirmed_mask, refined_mask, soft_mask
+    return result
 
 
-def compute_confirmed_mask(result_img):
+def compute_mask(result_img):
     confirmed = cv2.adaptiveThreshold(
         result_img,
         255,
@@ -61,52 +53,11 @@ def compute_confirmed_mask(result_img):
     return (confirmed > 0).astype(np.uint8)
 
 
-def refine_mask(confirmed_mask, closing_kernel_size=3):
-    if closing_kernel_size % 2 == 0:
-        closing_kernel_size += 1
-
-    kernel = cv2.getStructuringElement(
-        cv2.MORPH_ELLIPSE,
-        (closing_kernel_size, closing_kernel_size)
-    )
-
-    refined_mask = cv2.morphologyEx(
-        confirmed_mask.astype(np.uint8),
-        cv2.MORPH_CLOSE,
-        kernel
-    )
-
-    return refined_mask
-
-
-def build_soft_mask_from_levels(raw_result, allowed_mask, levels_per_mask=30):
-    soft_mask = np.zeros_like(raw_result, dtype=np.float32)
-
-    max_level = int(np.max(raw_result))
-
-    if max_level == 0:
-        return soft_mask
-
-    allowed_mask = allowed_mask.astype(np.float32)
-
-    for start in range(1, max_level + 1, levels_per_mask):
-        end = min(start + levels_per_mask, 256)
-
-        level_mask = (
-            (raw_result >= start) &
-            (raw_result < end)
-        )
-
-        weight = end / 255.0
-
-        soft_mask += level_mask.astype(np.float32) * weight * allowed_mask
-
-    return np.clip(soft_mask, 0.0, 1.0)
-
-
-def enhance_with_soft_mask(original_img, soft_mask, darken_value=40):
+def enhance_with_mask(original_img, mask, darken_value=60):
     img_float = original_img.astype(np.float32)
-    enhanced = img_float - soft_mask * darken_value
+    mask_float = mask.astype(np.float32)
+
+    enhanced = img_float - mask_float * darken_value
 
     return np.clip(enhanced, 0, 255).astype(np.uint8)
 
@@ -163,31 +114,38 @@ def update_lambda_plus_set(img, mask):
     lambdas = np.zeros((h, w, MAX_STACK_SIZE), dtype=np.int32)
     sizes = np.zeros((h, w), dtype=np.int32)
 
-    pred_levels = np.empty((3, MAX_STACK_SIZE), dtype=np.uint8)
-    pred_lambdas = np.empty((3, MAX_STACK_SIZE), dtype=np.int32)
-    pred_sizes = np.zeros(3, dtype=np.int32)
+    pred_levels = np.empty((MAX_NEIGHBORS, MAX_STACK_SIZE), dtype=np.uint8)
+    pred_lambdas = np.empty((MAX_NEIGHBORS, MAX_STACK_SIZE), dtype=np.int32)
+    pred_sizes = np.zeros(MAX_NEIGHBORS, dtype=np.int32)
 
-    for x in range(h - 1, -1, -1):
-        for y in range(w):
+    for x in range(h):
+        for y in range(w - 1, -1, -1):
             if mask[x, y] == 0:
                 continue
 
             value = img[x, y]
             pred_count = 0
 
-            ni = x + 1
+            neighbors = (
+                (x - 1, y - 1),
+                (x - 1, y),
+                (x - 1, y + 1),
+                (x, y + 1)
+            )
 
-            if ni < h:
-                for nj in (y - 1, y, y + 1):
-                    if 0 <= nj < w and mask[ni, nj] == 1:
-                        size = sizes[ni, nj]
-                        pred_sizes[pred_count] = size
+            for n in range(MAX_NEIGHBORS):
+                ni = neighbors[n][0]
+                nj = neighbors[n][1]
 
-                        for k in range(size):
-                            pred_levels[pred_count, k] = levels[ni, nj, k]
-                            pred_lambdas[pred_count, k] = lambdas[ni, nj, k]
+                if 0 <= ni < h and 0 <= nj < w and mask[ni, nj] == 1:
+                    size = sizes[ni, nj]
+                    pred_sizes[pred_count] = size
 
-                        pred_count += 1
+                    for k in range(size):
+                        pred_levels[pred_count, k] = levels[ni, nj, k]
+                        pred_lambdas[pred_count, k] = lambdas[ni, nj, k]
+
+                    pred_count += 1
 
             merged_levels, merged_lambdas, merged_size = merge(
                 pred_levels,
@@ -199,21 +157,21 @@ def update_lambda_plus_set(img, mask):
             max_len = 0
 
             for k in range(merged_size):
-                l = merged_levels[k]
+                level = merged_levels[k]
                 lmbda = merged_lambdas[k]
 
-                if l >= value and lmbda > max_len:
+                if level >= value and lmbda > max_len:
                     max_len = lmbda
 
             lambda_plus_temp = max_len + 1
             current_size = 0
 
             for k in range(merged_size):
-                l = merged_levels[k]
+                level = merged_levels[k]
                 lmbda = merged_lambdas[k]
 
-                if l < value:
-                    levels[x, y, current_size] = l
+                if level < value:
+                    levels[x, y, current_size] = level
                     lambdas[x, y, current_size] = lmbda + 1
                     current_size += 1
 
@@ -234,11 +192,11 @@ def update_lambda_minus_set(img, mask):
     lambdas = np.zeros((h, w, MAX_STACK_SIZE), dtype=np.int32)
     sizes = np.zeros((h, w), dtype=np.int32)
 
-    pred_levels = np.empty((3, MAX_STACK_SIZE), dtype=np.uint8)
-    pred_lambdas = np.empty((3, MAX_STACK_SIZE), dtype=np.int32)
-    pred_sizes = np.zeros(3, dtype=np.int32)
+    pred_levels = np.empty((MAX_NEIGHBORS, MAX_STACK_SIZE), dtype=np.uint8)
+    pred_lambdas = np.empty((MAX_NEIGHBORS, MAX_STACK_SIZE), dtype=np.int32)
+    pred_sizes = np.zeros(MAX_NEIGHBORS, dtype=np.int32)
 
-    for x in range(h):
+    for x in range(h - 1, -1, -1):
         for y in range(w):
             if mask[x, y] == 0:
                 continue
@@ -246,19 +204,26 @@ def update_lambda_minus_set(img, mask):
             value = img[x, y]
             pred_count = 0
 
-            ni = x - 1
+            neighbors = (
+                (x, y - 1),
+                (x + 1, y - 1),
+                (x + 1, y),
+                (x + 1, y + 1)
+            )
 
-            if ni >= 0:
-                for nj in (y - 1, y, y + 1):
-                    if 0 <= nj < w and mask[ni, nj] == 1:
-                        size = sizes[ni, nj]
-                        pred_sizes[pred_count] = size
+            for n in range(MAX_NEIGHBORS):
+                ni = neighbors[n][0]
+                nj = neighbors[n][1]
 
-                        for k in range(size):
-                            pred_levels[pred_count, k] = levels[ni, nj, k]
-                            pred_lambdas[pred_count, k] = lambdas[ni, nj, k]
+                if 0 <= ni < h and 0 <= nj < w and mask[ni, nj] == 1:
+                    size = sizes[ni, nj]
+                    pred_sizes[pred_count] = size
 
-                        pred_count += 1
+                    for k in range(size):
+                        pred_levels[pred_count, k] = levels[ni, nj, k]
+                        pred_lambdas[pred_count, k] = lambdas[ni, nj, k]
+
+                    pred_count += 1
 
             merged_levels, merged_lambdas, merged_size = merge(
                 pred_levels,
@@ -270,21 +235,21 @@ def update_lambda_minus_set(img, mask):
             max_len = 0
 
             for k in range(merged_size):
-                l = merged_levels[k]
+                level = merged_levels[k]
                 lmbda = merged_lambdas[k]
 
-                if l >= value and lmbda > max_len:
+                if level >= value and lmbda > max_len:
                     max_len = lmbda
 
             lambda_minus_temp = max_len + 1
             current_size = 0
 
             for k in range(merged_size):
-                l = merged_levels[k]
+                level = merged_levels[k]
                 lmbda = merged_lambdas[k]
 
-                if l < value:
-                    levels[x, y, current_size] = l
+                if level < value:
+                    levels[x, y, current_size] = level
                     lambdas[x, y, current_size] = lmbda + 1
                     current_size += 1
 
@@ -353,45 +318,25 @@ def build_result(
 
 
 if __name__ == "__main__":
-    img = cv2.imread("./dataset/1.bmp", cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread("./dataset/2.bmp", cv2.IMREAD_GRAYSCALE)
 
     if img is None:
         raise FileNotFoundError("Не вдалося завантажити зображення")
 
-    result, processed_img, stack_path_result, confirmed_mask, refined_mask, soft_mask = handwriting_enhancement_algorithm(
+    result = handwriting_enhancement_algorithm(
         img,
-        L=10,
-        levels_per_mask=30
+        L=30,
+        darken_value=40
     )
 
-    plt.figure(figsize=(22, 8))
+    plt.figure(figsize=(12, 6))
 
-    plt.subplot(2, 3, 1)
+    plt.subplot(1, 2, 1)
     plt.imshow(img, cmap="gray")
-    plt.title("Оригінал")
+    plt.title("Зображення з рівнями сірого")
     plt.axis("off")
 
-    plt.subplot(2, 3, 2)
-    plt.imshow(processed_img, cmap="gray")
-    plt.title("Median blur")
-    plt.axis("off")
-
-    plt.subplot(2, 3, 3)
-    plt.imshow(stack_path_result, cmap="gray")
-    plt.title("Stack path result")
-    plt.axis("off")
-
-    plt.subplot(2, 3, 4)
-    plt.imshow(refined_mask * 255, cmap="gray")
-    plt.title("Refined mask")
-    plt.axis("off")
-
-    plt.subplot(2, 3, 5)
-    plt.imshow(soft_mask, cmap="gray")
-    plt.title("Soft mask")
-    plt.axis("off")
-
-    plt.subplot(2, 3, 6)
+    plt.subplot(1, 2, 2)
     plt.imshow(result, cmap="gray")
     plt.title("Результат")
     plt.axis("off")
