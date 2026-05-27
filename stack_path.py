@@ -262,17 +262,29 @@ if __name__ == "__main__":
         raise FileNotFoundError("Не вдалося завантажити зображення")
 
     result1 = stack_path_opening(img, L=10)
+    result2 = stack_path_opening(img, L=20)
+    result3 = stack_path_opening(img, L=30)
 
     plt.figure(figsize=(12, 10))
 
-    plt.subplot(1, 2, 1)
+    plt.subplot(2, 2, 1)
     plt.imshow(img, cmap="gray")
     plt.title("Зображення з рівнями сірого")
     plt.axis("off")
 
-    plt.subplot(1, 2, 2)
+    plt.subplot(2, 2, 2)
     plt.imshow(result1, cmap="gray")
     plt.title("Шляхове розкриття на основі стеку (L = 10)")
+    plt.axis("off")
+
+    plt.subplot(2, 2, 3)
+    plt.imshow(result2, cmap="gray")
+    plt.title("Шляхове розкриття на основі стеку (L = 20)")
+    plt.axis("off")
+
+    plt.subplot(2, 2, 4)
+    plt.imshow(result3, cmap="gray")
+    plt.title("Шляхове розкриття на основі стеку (L = 30)")
     plt.axis("off")
 
     plt.tight_layout()

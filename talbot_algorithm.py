@@ -131,7 +131,7 @@ def update_lambda_minus(img, level, lambda_minus):
     return lambda_minus
 
 if __name__ == "__main__":
-    img = cv2.imread("./dataset/10.bmp", cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread("./dataset/2.bmp", cv2.IMREAD_GRAYSCALE)
 
     if img is None:
         raise FileNotFoundError("Не вдалося завантажити зображення")

@@ -76,14 +76,11 @@ def compute_lambda_minus(img):
 
 
 def binary_algorithm(binary_img, L):
-    # обчислення довжин шляху
     lambda_plus = compute_lambda_plus(binary_img)
     lambda_minus = compute_lambda_minus(binary_img)
 
-    # повна довжина шляху через піксель
     lambda_total = lambda_plus + lambda_minus - 1
 
-    # залишаємо лише ті пікселі, що належать шляхам довжини >= L
     result = np.full(binary_img.shape, 255, dtype=np.uint8)
     result[(binary_img == 1) & (lambda_total >= L)] = 0
 
@@ -99,11 +96,9 @@ if __name__ == "__main__":
     _, binary = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
     binary01 = (binary == 0).astype(np.uint8)
 
-    # застосування алгоритму
     result1 = binary_algorithm(binary01, L=10)
     result2 = binary_algorithm(binary01, L=20)
 
-    # візуалізація
     fig, axes = plt.subplots(2, 2, figsize=(10, 8))
 
     plt.subplot(2, 2, 1)
