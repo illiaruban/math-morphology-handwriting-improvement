@@ -6,7 +6,6 @@ import numpy as np
 
 #download image
 img = cv2.imread('./dataset/1.bmp', 0)
-img = cv2.bitwise_not(img)
 kernel = np.ones((5, 5), np.uint8)
 
 #erosion
@@ -24,27 +23,57 @@ img_closing = cv2.erode(img_dilation, kernel, iterations=1)
 #plotting
 plt.figure(figsize=(12, 8))
 
-plt.subplot(2, 3, 1)
+plt.subplot(1, 2, 1)
 plt.imshow(img, cmap='gray')
-plt.title("Оригінальне зображення")
+plt.title("Сірошкальне зображення")
 plt.axis('off')
 
-plt.subplot(2, 3, 2)
+plt.subplot(1, 2, 2)
 plt.imshow(img_erosion, cmap='gray')
 plt.title("Після звуження")
 plt.axis('off')
 
-plt.subplot(2, 3, 3)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(12, 8))
+
+plt.subplot(1, 2, 1)
+plt.imshow(img, cmap='gray')
+plt.title("Сірошкальне зображення")
+plt.axis('off')
+
+plt.subplot(1, 2, 2)
 plt.imshow(img_dilation, cmap='gray')
 plt.title("Після розширення")
 plt.axis('off')
 
-plt.subplot(2, 3, 4)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(12, 8))
+
+plt.subplot(1, 2, 1)
+plt.imshow(img, cmap='gray')
+plt.title("Сірошкальне зображення")
+plt.axis('off')
+
+plt.subplot(1, 2, 2)
 plt.imshow(img_opening, cmap='gray')
 plt.title("Після розкриття")
 plt.axis('off')
 
-plt.subplot(2, 3, 5)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(12, 8))
+
+plt.subplot(1, 2, 1)
+plt.imshow(img, cmap='gray')
+plt.title("Сірошкальне зображення")
+plt.axis('off')
+
+plt.subplot(1, 2, 2)
 plt.imshow(img_closing, cmap='gray')
 plt.title("Після закриття")
 plt.axis('off')
